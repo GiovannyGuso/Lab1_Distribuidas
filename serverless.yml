@@ -1,16 +1,16 @@
-# "org" ensures this Service is used with the correct Serverless Framework Access Key.
-service: aws-node-express-dynamodb-api
+service: lab1-distribuidas  
 frameworkVersion: "4"
 
 stages:
   default:
     params:
-      itemTableName: "item-table-${sls:stage}"
-      userTableName: "user-table-${sls:stage}"
+      itemTableName: "lab1d-item-${sls:stage}"
+      userTableName: "lab1d-user-${sls:stage}"
 
 provider:
   name: aws
   runtime: nodejs20.x
+  region: us-east-1
   iam:
     role:
       statements:
@@ -28,6 +28,7 @@ provider:
   environment:
     USER_TABLE: ${param:userTableName}
     ITEM_TABLE: ${param:itemTableName}
+
 functions:
   api:
     handler: handler.handler

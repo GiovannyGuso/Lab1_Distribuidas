@@ -43,25 +43,29 @@ app.get("/users", async (req, res) => {
 app.put("/users/:userId", async (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ "Error": "No se encuentran los datos para actualizar" });
+
   const params = {
     TableName: USER_TABLE,
     Key: { userId: req.params.userId },
-    UpdateExpression: "set #name = :name",
+    UpdateExpression: "SET #name = :name",
     ExpressionAttributeNames: { "#name": "name" },
     ExpressionAttributeValues: { ":name": name },
     ReturnValues: "ALL_NEW",
-    ConditioExpression: "attribute_exists(userId)"
-  }
+    ConditionExpression: "attribute_exists(userId)"   // <- corregido
+  };
 
   try {
     const command = new UpdateCommand(params);
     const result = await docClient.send(command);
-    res.status(200).json(result.Attributes)
+    res.status(200).json(result.Attributes);
   } catch (error) {
+    if (error?.name === "ConditionalCheckFailedException") {
+      return res.status(404).json({ error: "Usuario no existe" });
+    }
     console.log("Error " + error);
     res.status(500).json({ "Error": "No se pudo editar" });
   }
-})
+});
 
 //ELIMINAR UN USUARIO
 app.delete("/users/:userId", async (req, res) => {
@@ -109,28 +113,18 @@ app.get("/users/:userId", async (req, res) => {
 //INGRESAR UN NUEVO USUARIO
 app.post("/users", async (req, res) => {
   const { userId, name, email } = req.body;
-  if (typeof userId !== "string") {
-    res.status(400).json({ "Error": "userId can must be a string" });
-  }
-  if (typeof name !== "string") {
-    res.status(400).json({ "Error": "name can must be a string" });
-  }
-  if (typeof email !== "string") {
-    res.status(400).json({ "Error": "email can must be a string" });
-  }
+  if (typeof userId !== "string") return res.status(400).json({ "Error": "userId must be a string" });
+  if (typeof name !== "string")   return res.status(400).json({ "Error": "name must be a string" });
+  if (typeof email !== "string")  return res.status(400).json({ "Error": "email must be a string" });
 
-  const params = {
-    TableName: USER_TABLE,
-    Item: { userId, name, email },
-  };
   try {
-    const command = new PutCommand(params);
-    await docClient.send(command);
+    await docClient.send(new PutCommand({ TableName: USER_TABLE, Item: { userId, name, email } }));
     res.status(201).json({ userId, name, email });
   } catch (error) {
     console.log("error: " + error);
+    res.status(500).json({ error: "Could not create user" });
   }
-})
+});
 /* ********** FÍN MÉTODOS PARA USUARIOS  *************/
 
 /* ********** MÉTODOS PARA ITEMS  *************/
@@ -177,30 +171,18 @@ app.get("/items/:itemId", async (req, res) => {
 //Ingresar un nuevo Item
 app.post("/items", async (req, res) => {
   const { itemId, name, price, description, userId } = req.body;
-  if (typeof itemId !== "string") {
-    res.status(400).json({ error: '"itemId" must be a string' });
-  } else if (typeof name !== "string") {
-    res.status(400).json({ error: '"name" must be a string' });
-  } else if (typeof price !== "number") {
-    res.status(400).json({ error: '"price" must be a number' });
-  } else if (typeof description !== "string") {
-    res.status(400).json({ error: '"description" must be a string' });
-  } else if (typeof userId !== "string") {
-    res.status(400).json({ error: '"userId" must be a string' });
-  }
-
-  const params = {
-    TableName: ITEM_TABLE,
-    Item: { itemId, name, price, description, userId },
-  };
+  if (typeof itemId !== "string")      return res.status(400).json({ error: '"itemId" must be a string' });
+  if (typeof name !== "string")        return res.status(400).json({ error: '"name" must be a string' });
+  if (typeof price !== "number")       return res.status(400).json({ error: '"price" must be a number' });
+  if (typeof description !== "string") return res.status(400).json({ error: '"description" must be a string' });
+  if (typeof userId !== "string")      return res.status(400).json({ error: '"userId" must be a string' });
 
   try {
-    const command = new PutCommand(params);
-    await docClient.send(command);
-    res.json({ itemId, name, price, description, userId });
+    await docClient.send(new PutCommand({ TableName: ITEM_TABLE, Item: { itemId, name, price, description, userId } }));
+    res.status(201).json({ itemId, name, price, description, userId });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Could not create user" });
+    res.status(500).json({ error: "Could not create item" });
   }
 });
 
